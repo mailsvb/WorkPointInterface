@@ -2,7 +2,7 @@
 	function main($ip, $reason, $action, $nonce, $items, $content)
 	{
 		// Logging incoming message to device specific file
-		logWPI($ip.".log", "<<<<<<<<< [ ".date("d-M-Y H:i:s")." ] [ ".$ip." ] [ ".$items['e164']['value']." ] [ ".$items['mac-addr']['value']." ] ########################################################################\n\n");
+		logWPI($ip.".log", "<<<<<<<<< [ ".date("d-M-Y H:i:s")." ] [ ".$ip." ] ########################################################################\n\n");
 		logWPI($ip.".log", $content."\n");
 		
 		// if device boots up, simply read all items from it first
@@ -54,7 +54,7 @@
 		}
 		
 		// logging output of script to device specific file
-		logWPI($ip.".log", ">>>>>>>>> [ ".date("d-M-Y H:i:s")." ] [ ".$ip." ] [ ".$items['e164']['value']." ] [ ".$items['mac-addr']['value']." ] ########################################################################\n\n");
+		logWPI($ip.".log", ">>>>>>>>> [ ".date("d-M-Y H:i:s")." ] [ ".$ip." ] ########################################################################\n\n");
 		logWPI($ip.".log", $output."\n");
 		exit();
 	}
@@ -95,7 +95,7 @@
 		$output.='</Message>'."\n";
 		$output.='</DLSMessage>'."\n";
 		echo $output;
-		Return $ouput;
+		Return $output;
 	}
 	
 	function logWPI($file, $output)

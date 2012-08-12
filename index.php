@@ -59,6 +59,7 @@
 	/*
 	 * checking items send by device
 	 */
+	$items = '';
 	preg_match_all('@name="([^"]*)(" index=")*([0-9])*">([^<]*)</Item>@', $content, $tmp);
 	if (count($tmp) > 0)
 	{
