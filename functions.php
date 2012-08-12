@@ -68,7 +68,6 @@
 		$output.='</Message>'."\n";
 		$output.='</DLSMessage>'."\n";
 		echo $output;
-		//logWPI($output, $_SERVER['REMOTE_ADDR']);
 		Return $output;
 	}
 	
@@ -81,7 +80,6 @@
 		$output.='</Message>'."\n";
 		$output.='</DLSMessage>'."\n";
 		echo $output;
-		//logWPI($output, $_SERVER['REMOTE_ADDR']);
 		Return $output;
 	}
 	
@@ -97,7 +95,6 @@
 		$output.='</Message>'."\n";
 		$output.='</DLSMessage>'."\n";
 		echo $output;
-		//logWPI($output, $_SERVER['REMOTE_ADDR']);
 		Return $ouput;
 	}
 	
