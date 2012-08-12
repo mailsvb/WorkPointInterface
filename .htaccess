@@ -1,0 +1,3 @@
+RewriteEngine On
+RewriteRule	^LoginService$ index.php
+RewriteRule	^contact-me$ index.php
