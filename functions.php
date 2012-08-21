@@ -5,25 +5,72 @@
 		logWPI($ip.".log", "<<<<<<<<< [ ".date("d-M-Y H:i:s")." ] [ ".$ip." ] ########################################################################\n\n");
 		logWPI($ip.".log", $content."\n");
 		
+		// Check if we want a delay in replying to the phone request for testing purposes
+		if (file_exists($ip.".sleep"))
+		{
+			$delay = file_get_contents($ip.".sleep");
+			if ($delay < 600)
+			{
+				sleep($delay);
+			}
+		}
+		
 		// if device boots up, simply read all items from it first
 		if ($reason == "start-up")
 		{
-			$output = ReadAll($nonce);
 			trigger_error($_SERVER['REMOTE_ADDR']." Send ReadAllItems after start-up", E_USER_NOTICE);
+			$output = ReadAll($nonce);
 		}
 		
 		// current implementation ignores local changes messages.
 		elseif ($reason == "local-changes")
 		{
-			trigger_error($_SERVER['REMOTE_ADDR']." Ignore local-changes message and send CleanUp", E_USER_NOTICE);
-			$output = CleanUp($nonce);
+			// if there is a write items file for this device, read content and send write items request only if previous request was not a WriteItems request to prevent loop
+			if (file_exists($ip.".read") AND $action != 'WriteItems' AND $action != 'ReadItems' AND $action != 'ReadAllItems')
+			{
+				trigger_error($_SERVER['REMOTE_ADDR']." Device specific read file found. Reading details from ".$ip.".read", E_USER_NOTICE);
+				$readitems = file_get_contents($ip.".read");
+				$output = ReadItems($nonce, $readitems);
+				trigger_error($_SERVER['REMOTE_ADDR']." Device specific read sent", E_USER_NOTICE);
+			}
+			else
+			{
+				trigger_error($_SERVER['REMOTE_ADDR']." Ignore local-changes message and send CleanUp", E_USER_NOTICE);
+				$output = CleanUp($nonce);
+			}
 		}
 		
 		// if device contacts us again either with reply-to (replying to previous action) or solicited (replying after previous contact-me)
 		elseif ($reason == "solicited" or $reason == "reply-to")
-		{		
+		{
+			// check for existing software file
+			if (file_exists($ip.".software"))
+			{
+				trigger_error($_SERVER['REMOTE_ADDR']." Software Update requested. Reading details from ".$ip.".software", E_USER_NOTICE);
+				$swupdateitems = file_get_contents($ip.".software");
+				$output = SWUpdate($nonce, $swupdateitems);
+				trigger_error($_SERVER['REMOTE_ADDR']." Software Update initiated. Deleting ".$ip.".software", E_USER_NOTICE);
+				unlink($ip.".software");
+			}
+			// check for existing dongle file
+			elseif (file_exists($ip.".dongle"))
+			{
+				trigger_error($_SERVER['REMOTE_ADDR']." Software Dongle requested. Reading details from ".$ip.".dongle", E_USER_NOTICE);
+				$swupdateitems = file_get_contents($ip.".dongle");
+				$output = FileDeployment($nonce, $swupdateitems);
+				trigger_error($_SERVER['REMOTE_ADDR']." Dongle download initiated. Deleting ".$ip.".dongle", E_USER_NOTICE);
+				unlink($ip.".software");
+			}
 			// if there is a write items file for this device, read content and send write items request only if previous request was not a WriteItems request to prevent loop
-			if (file_exists($ip.".write") AND $action != 'WriteItems')
+			elseif (file_exists($ip.".read") AND $action != 'WriteItems' AND $action != 'ReadItems' AND $action != 'ReadAllItems')
+			{
+				trigger_error($_SERVER['REMOTE_ADDR']." Device specific read file found. Reading details from ".$ip.".read", E_USER_NOTICE);
+				$readitems = file_get_contents($ip.".read");
+				$output = ReadItems($nonce, $readitems);
+				trigger_error($_SERVER['REMOTE_ADDR']." Device specific read sent", E_USER_NOTICE);
+			}
+			// if there is a write items file for this device, read content and send write items request only if previous request was not a WriteItems request to prevent loop
+			elseif (file_exists($ip.".write") AND $action != 'WriteItems')
 			{
 				trigger_error($_SERVER['REMOTE_ADDR']." Device specific configuration file found. Reading details from ".$ip.".write", E_USER_NOTICE);
 				$writeitems = file_get_contents($ip.".write");
@@ -38,6 +85,12 @@
 				$output = WriteItems($nonce, $writeitems);
 				trigger_error($_SERVER['REMOTE_ADDR']." Default configuration sent", E_USER_NOTICE);
 			}
+			// if we don't see any file, we do a ReadAllItems only on first contact
+			elseif ($action != 'WriteItems' AND $action != 'ReadItems' AND $action != 'ReadAllItems')
+			{
+				trigger_error($_SERVER['REMOTE_ADDR']." Send ReadAllItems after start-up", E_USER_NOTICE);
+				$output = ReadAll($nonce);
+			}
 			// if nothing exists we just clean up
 			else
 			{
@@ -45,7 +98,12 @@
 				$output = CleanUp($nonce);
 			}
 		}
-		
+		// if phone pushes status after file deployment just clean-up
+		elseif ($reason == "status")
+		{
+			trigger_error($_SERVER['REMOTE_ADDR']." Sending CleanUp because of device status update after file deployment", E_USER_NOTICE);
+			$output = CleanUp($nonce);
+		}
 		// if we don't understand the device request, just cleanup
 		else
 		{
@@ -57,50 +115,5 @@
 		logWPI($ip.".log", ">>>>>>>>> [ ".date("d-M-Y H:i:s")." ] [ ".$ip." ] ########################################################################\n\n");
 		logWPI($ip.".log", $output."\n");
 		exit();
-	}
-	
-	function ReadAll($nonce)
-	{
-		$output ='<?xml version="1.0" encoding="UTF-8"?>'."\n";
-		$output.='<DLSMessage xmlns="http://www.siemens.com/DLS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.siemens.com/DLS">'."\n";
-		$output.='<Message nonce="'.$nonce.'">'."\n";
-		$output.='	<Action>ReadAllItems</Action>'."\n";
-		$output.='</Message>'."\n";
-		$output.='</DLSMessage>'."\n";
-		echo $output;
-		Return $output;
-	}
-	
-	function CleanUp($nonce)
-	{
-		$output ='<?xml version="1.0" encoding="UTF-8"?>'."\n";
-		$output.='<DLSMessage xmlns="http://www.siemens.com/DLS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.siemens.com/DLS">'."\n";
-		$output.='<Message nonce="'.$nonce.'">'."\n";
-		$output.='	<Action>CleanUp</Action>'."\n";
-		$output.='</Message>'."\n";
-		$output.='</DLSMessage>'."\n";
-		echo $output;
-		Return $output;
-	}
-	
-	function WriteItems($nonce, $writeitems)
-	{
-		$output ='<?xml version="1.0" encoding="UTF-8"?>'."\n";
-		$output.='<DLSMessage xmlns="http://www.siemens.com/DLS" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.siemens.com/DLS">'."\n";
-		$output.='<Message nonce="'.$nonce.'">'."\n";
-		$output.='	<Action>WriteItems</Action>'."\n";
-		$output.='	<ItemList>'."\n";
-		$output.=$writeitems."\n";
-		$output.='	</ItemList>'."\n";
-		$output.='</Message>'."\n";
-		$output.='</DLSMessage>'."\n";
-		echo $output;
-		Return $output;
-	}
-	
-	function logWPI($file, $output)
-	{
-		file_put_contents($file, $output, FILE_APPEND);
-		Return;
 	}
 ?>
