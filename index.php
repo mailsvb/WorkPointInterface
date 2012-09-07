@@ -8,35 +8,39 @@
 	// writing POST data to content variable
 	$content = file_get_contents('php://input');
 	
+	// For supporting IPv6 addresses in Filesystem, replace : with .
+	$ip = $_SERVER['REMOTE_ADDR'];
+	$ip_filesystem = str_replace(":", ".", $_SERVER['REMOTE_ADDR']);
+	
 	/*
 	 * checking if DCMP request
 	 */
 	if (isset($_REQUEST['device-id'])) {
-		error_log($_SERVER['REMOTE_ADDR']." Incoming DCMP request...", 0);
+		error_log($ip." Incoming DCMP request...", 0);
 		
 		// default dcmp response is 200
 		$dcmpresponse = 200;
 		
-		if (file_exists($_SERVER['REMOTE_ADDR'].".dcmp")) 
+		if (file_exists(ip_filesystem.".dcmp")) 
 		{
 			// reading dcmp action for device from file
-			$dcmpcode = file_get_contents($_SERVER['REMOTE_ADDR'].".dcmp");
+			$dcmpcode = file_get_contents(ip_filesystem.".dcmp");
 			
 			if ($dcmpcode == "always" )
 			{
 				$dcmpresponse = 202;
-				error_log($_SERVER['REMOTE_ADDR']." Device needs to contact DLS always (".$dcmpresponse.")", 0);
+				error_log($ip." Device needs to contact DLS always (".$dcmpresponse.")", 0);
 			}
 			elseif ($dcmpcode == "true" )
 			{
 				$dcmpresponse = 202;
-				error_log($_SERVER['REMOTE_ADDR']." Device needs to contact DLS only once (".$dcmpresponse.")", 0);
-				file_put_contents($_SERVER['REMOTE_ADDR'].".dcmp", "false");
+				error_log($ip." Device needs to contact DLS only once (".$dcmpresponse.")", 0);
+				file_put_contents(ip_filesystem.".dcmp", "false");
 			}
 			else
 			{
 				$dcmpresponse = 200;
-				error_log($_SERVER['REMOTE_ADDR']." No need to contact DLS for device (".$dcmpresponse.")", 0);
+				error_log($ip." No need to contact DLS for device (".$dcmpresponse.")", 0);
 			}
 		}
 		
@@ -61,11 +65,11 @@
 				$action = $tmp_action[1];
 			}
 		}
-		trigger_error($_SERVER['REMOTE_ADDR']." Incoming connection. Reason: ".$reason.", Action: ".$action, E_USER_NOTICE);
+		trigger_error($ip." Incoming connection. Reason: ".$reason.", Action: ".$action, E_USER_NOTICE);
 	}
 	else
 	{
-		trigger_error($_SERVER['REMOTE_ADDR']." Incoming connection. Reason: UNKNOWN", E_USER_NOTICE);
+		trigger_error($ip." Incoming connection. Reason: UNKNOWN", E_USER_NOTICE);
 		exit();
 	}
 	
@@ -77,11 +81,11 @@
 	if (count($nonce) > 0)
 	{
 		$nonce=$nonce[1];
-		trigger_error($_SERVER['REMOTE_ADDR']." Succesfully found nonce: ".$nonce, E_USER_NOTICE);
+		trigger_error($ip." Succesfully found nonce: ".$nonce, E_USER_NOTICE);
 	}
 	else
 	{
-		trigger_error($_SERVER['REMOTE_ADDR']." Unable to find nonce...".$content, E_USER_NOTICE);
+		trigger_error($ip." Unable to find nonce...".$content, E_USER_NOTICE);
 		exit();
 	}
 	
@@ -102,7 +106,7 @@
 	 */
 	
 	include_once ('functions.php');
-	main($_SERVER['REMOTE_ADDR'], $reason, $action, $nonce, $items, $content);
+	main($ip, $ip_filesystem, $reason, $action, $nonce, $items, $content);
 	
 	function ReadAll($nonce)
 	{
